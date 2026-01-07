@@ -206,7 +206,10 @@ def create_app(data_dir: Path | None = None, host: str = "0.0.0.0", port: int = 
     chain_config = ChainConfig()
     node_config = NodeConfig(data_dir=data_dir, host=host, port=port)
     storage = Storage(node_config)
-    chain = Blockchain.load(node_config.chain_path, chain_config)
+    try:
+        chain = Blockchain.load(node_config.chain_path, chain_config)
+    except ValueError as exc:
+        raise RuntimeError(str(exc)) from exc
     chain.mempool = storage.load_mempool()
     peers = storage.load_peers()
     node = Node(
