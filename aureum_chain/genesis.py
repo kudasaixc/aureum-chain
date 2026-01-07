@@ -7,7 +7,6 @@ from aureum_chain.tx import Transaction, TxInput, TxOutput, coinbase_extra_data
 
 TESTNET_GENESIS_VERSION = 1
 TESTNET_GENESIS_PREV_HASH = "0" * 64
-TESTNET_GENESIS_TIMESTAMP = 1_700_000_000
 TESTNET_GENESIS_BITS = 0
 TESTNET_GENESIS_NONCE = 42
 TESTNET_GENESIS_COINBASE_AMOUNT = 50
@@ -43,7 +42,7 @@ def get_testnet_genesis_block(config: ChainConfig) -> Block:
         version=encode_version(TESTNET_GENESIS_VERSION, list(config.version_flags)),
         prev_hash=TESTNET_GENESIS_PREV_HASH,
         merkle_root=merkle,
-        timestamp=TESTNET_GENESIS_TIMESTAMP,
+        timestamp=config.genesis_timestamp,
         bits=TESTNET_GENESIS_BITS,
         nonce=TESTNET_GENESIS_NONCE,
     )

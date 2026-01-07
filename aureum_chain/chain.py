@@ -53,8 +53,7 @@ class Blockchain:
         return self.state.total_supply
 
     def deterministic_timestamp(self, height: int) -> int:
-        genesis_timestamp = self.state.blocks[0].header.timestamp
-        return genesis_timestamp + height * self.config.block_time_seconds
+        return self.config.genesis_timestamp + height * self.config.block_time_seconds
 
     def add_transaction(self, tx: Transaction) -> bool:
         if not tx.validate(self.state.utxos):

@@ -10,6 +10,7 @@ class ChainConfig:
     symbol: str = "AUR"
     network: str = "testnet"
     genesis_message: str = "Aureum Chain Genesis Block"
+    genesis_timestamp: int = 1_700_000_000
     block_time_seconds: int = 600
     target_leading_zeros: int = 4
     max_block_size: int = 1_000_000
