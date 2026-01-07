@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aureum-chain"
+version = "0.1.0"
+description = "Aureum Chain - Bitcoin-like blockchain implementation"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Aureum Chain" }]
+keywords = ["blockchain", "bitcoin", "cryptography"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+]
+
+dependencies = [
+  "fastapi>=0.111.0",
+  "uvicorn>=0.30.0",
+  "cryptography>=42.0.0",
+  "base58>=2.1.1",
+  "pydantic>=2.7.0",
+  "requests>=2.32.0",
+]
+
+[project.scripts]
+aureum-chain = "aureum_chain.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["aureum_chain*"]
