@@ -84,7 +84,8 @@ class Blockchain:
             version=encode_version(self.config.base_version, list(self.config.version_flags)),
         )
         block.mine(self.target_prefix())
-        self.apply_block(block)
+        if not self.apply_block(block):
+            raise ValueError("Mined invalid block (bug)")
         self.mempool.remove_transactions([tx.txid for tx in txs])
         return block
 
@@ -106,6 +107,8 @@ class Blockchain:
         if block.header.prev_hash != self.last_hash():
             return False
         if block.height != self.height() + 1:
+            return False
+        if block.header.timestamp != self.deterministic_timestamp(block.height):
             return False
         if block.hash != block.header.hash():
             return False
