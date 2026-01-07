@@ -39,21 +39,25 @@ class Transaction:
     inputs: list[TxInput]
     outputs: list[TxOutput]
     locktime: int = 0
+    extra_data: str | None = None
     txid: str = field(init=False)
 
     def __post_init__(self) -> None:
         self.txid = self.compute_txid()
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        data: dict[str, Any] = {
             "txid": self.txid,
             "inputs": [i.to_dict() for i in self.inputs],
             "outputs": [o.to_dict() for o in self.outputs],
             "locktime": self.locktime,
         }
+        if self.extra_data not in (None, ""):
+            data["extra_data"] = self.extra_data
+        return data
 
     def to_dict_unsigned(self) -> dict[str, Any]:
-        return {
+        data: dict[str, Any] = {
             "inputs": [
                 {"txid": i.txid, "vout": i.vout, "signature": "", "pubkey": ""}
                 for i in self.inputs
@@ -61,6 +65,9 @@ class Transaction:
             "outputs": [o.to_dict() for o in self.outputs],
             "locktime": self.locktime,
         }
+        if self.extra_data not in (None, ""):
+            data["extra_data"] = self.extra_data
+        return data
 
     def serialize_unsigned(self) -> bytes:
         return json_dumps(self.to_dict_unsigned()).encode()
@@ -86,6 +93,8 @@ class Transaction:
     def validate(self, utxos: dict[str, TxOutput]) -> bool:
         if self.is_coinbase():
             return True
+        if self.extra_data not in (None, ""):
+            return False
         message = self.serialize_unsigned()
         for tx_input in self.inputs:
             key = f"{tx_input.txid}:{tx_input.vout}"

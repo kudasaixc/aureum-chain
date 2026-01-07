@@ -21,7 +21,7 @@ def _build_testnet_coinbase() -> Transaction:
             TxInput(
                 txid="",
                 vout=-1,
-                signature=TESTNET_GENESIS_MESSAGE,
+                signature="",
                 pubkey="",
             )
         ],
@@ -31,6 +31,7 @@ def _build_testnet_coinbase() -> Transaction:
                 pubkey_hash=TESTNET_GENESIS_COINBASE_PUBKEY_HASH,
             )
         ],
+        extra_data=TESTNET_GENESIS_MESSAGE,
     )
 
 
