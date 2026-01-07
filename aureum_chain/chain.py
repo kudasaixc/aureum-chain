@@ -17,6 +17,7 @@ from aureum_chain.tx import Transaction, TxInput, TxOutput, coinbase_extra_data
 class ChainState:
     blocks: list[Block]
     utxos: dict[str, TxOutput]
+    total_supply: int
 
 
 class Blockchain:
@@ -28,7 +29,8 @@ class Blockchain:
     def _create_genesis(self) -> ChainState:
         genesis = get_testnet_genesis_block(self.config)
         utxos = {f"{genesis.transactions[0].txid}:0": genesis.transactions[0].outputs[0]}
-        return ChainState(blocks=[genesis], utxos=utxos)
+        genesis_supply = sum(output.amount for output in genesis.transactions[0].outputs)
+        return ChainState(blocks=[genesis], utxos=utxos, total_supply=genesis_supply)
 
     def height(self) -> int:
         return self.state.blocks[-1].height
@@ -48,15 +50,11 @@ class Blockchain:
         return max(reward, 1)
 
     def current_supply(self) -> int:
-        total = 0
-        for block in self.state.blocks:
-            if not block.transactions:
-                continue
-            coinbase_tx = block.transactions[0]
-            if not coinbase_tx.is_coinbase():
-                continue
-            total += sum(output.amount for output in coinbase_tx.outputs)
-        return total
+        return self.state.total_supply
+
+    def deterministic_timestamp(self, height: int) -> int:
+        genesis_timestamp = self.state.blocks[0].header.timestamp
+        return genesis_timestamp + height * self.config.block_time_seconds
 
     def add_transaction(self, tx: Transaction) -> bool:
         if not tx.validate(self.state.utxos):
@@ -68,7 +66,7 @@ class Blockchain:
         height = self.height() + 1
         txs = self.mempool.sorted_transactions()
         fee_total = self.mempool.fee_total()
-        remaining_supply = max(self.config.max_supply - self.current_supply(), 0)
+        remaining_supply = max(self.config.max_supply - self.state.total_supply, 0)
         reward = min(self.block_reward(height) + fee_total, remaining_supply)
         miner_pubkey_hash = pubkey_hash_from_address(miner_address).hex()
         coinbase = Transaction(
@@ -82,6 +80,7 @@ class Blockchain:
             height=height,
             transactions=block_txs,
             bits=self.difficulty_bits(),
+            timestamp=self.deterministic_timestamp(height),
             version=encode_version(self.config.base_version, list(self.config.version_flags)),
         )
         block.mine(self.target_prefix())
@@ -98,6 +97,8 @@ class Blockchain:
                     self.state.utxos.pop(f"{tx_input.txid}:{tx_input.vout}", None)
             for index, output in enumerate(tx.outputs):
                 self.state.utxos[f"{tx.txid}:{index}"] = output
+        coinbase_total = sum(output.amount for output in block.transactions[0].outputs)
+        self.state.total_supply += coinbase_total
         self.state.blocks.append(block)
         return True
 
@@ -135,7 +136,7 @@ class Blockchain:
                     temp_utxos.pop(f"{tx_input.txid}:{tx_input.vout}", None)
             for index, output in enumerate(tx.outputs):
                 temp_utxos[f"{tx.txid}:{index}"] = output
-        current_supply = self.current_supply()
+        current_supply = self.state.total_supply
         remaining_supply = max(self.config.max_supply - current_supply, 0)
         expected_reward = min(self.block_reward(block.height), remaining_supply)
         coinbase_total = sum(output.amount for output in coinbase_tx.outputs)
@@ -178,6 +179,7 @@ class Blockchain:
             height=first_block_data["height"],
             transactions=transactions,
             bits=first_block_data["header"]["bits"],
+            timestamp=first_block_data["header"]["timestamp"],
             version=first_block_data["header"]["version"],
         )
         genesis_block.header.nonce = first_block_data["header"]["nonce"]
@@ -210,6 +212,7 @@ class Blockchain:
                 height=block_data["height"],
                 transactions=transactions,
                 bits=block_data["header"]["bits"],
+                timestamp=block_data["header"]["timestamp"],
                 version=block_data["header"]["version"],
             )
             block.header.nonce = block_data["header"]["nonce"]
@@ -221,6 +224,7 @@ class Blockchain:
             if block.height == 0:
                 chain.state.blocks = [block]
                 chain.state.utxos = {f"{transactions[0].txid}:0": transactions[0].outputs[0]}
+                chain.state.total_supply = sum(output.amount for output in transactions[0].outputs)
                 continue
             chain.apply_block(block)
         return chain

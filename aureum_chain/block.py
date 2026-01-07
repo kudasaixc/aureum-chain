@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-import time
 from dataclasses import dataclass, field
 from typing import Any
 
 from aureum_chain.crypto import hash_hex, merkle_root, json_dumps
 from aureum_chain.tx import Transaction
 
-VERSION_BITS_MASK = 0b11100000_00000000_00000000_00000000
-VERSION_SIGNALING_BITS = 0b00100000_00000000_00000000_00000000
+VERSION_TOP_MASK = 0b11100000_00000000_00000000_00000000
 FEATURE_FLAGS = {
-    "future_softfork_1": 1 << 0,
-    "future_softfork_2": 1 << 1,
+    "future_softfork_1": 1 << 29,
+    "future_softfork_2": 1 << 30,
 }
 
 
@@ -21,8 +19,8 @@ def encode_version(base_version: int, flags: list[str]) -> int:
         bit = FEATURE_FLAGS.get(flag)
         if bit is not None:
             flag_bits |= bit
-    base_clean = base_version & ~VERSION_BITS_MASK
-    return base_clean | VERSION_SIGNALING_BITS | flag_bits
+    base_clean = base_version & ~VERSION_TOP_MASK
+    return base_clean | flag_bits
 
 
 def decode_version(version: int) -> dict[str, Any]:
@@ -32,12 +30,13 @@ def decode_version(version: int) -> dict[str, Any]:
         if version & bit:
             enabled_flags.append(name)
             known_bits |= bit
-    base_version = version & ~VERSION_BITS_MASK & ~known_bits
+    signaling_bits = version & VERSION_TOP_MASK
+    base_version = version & ~VERSION_TOP_MASK
     return {
-        "signaling_bits": version & VERSION_BITS_MASK,
+        "signaling_bits": signaling_bits,
         "base_version": base_version,
         "flags": enabled_flags,
-        "unknown_bits": version & ~VERSION_BITS_MASK & ~known_bits,
+        "unknown_bits": signaling_bits & ~known_bits,
     }
 
 
@@ -88,6 +87,7 @@ class Block:
         height: int,
         transactions: list[Transaction],
         bits: int,
+        timestamp: int,
         version: int = 1,
     ) -> "Block":
         merkle = merkle_root([tx.txid for tx in transactions])
@@ -95,7 +95,7 @@ class Block:
             version=version,
             prev_hash=prev_hash,
             merkle_root=merkle,
-            timestamp=int(time.time()),
+            timestamp=timestamp,
             bits=bits,
             nonce=0,
         )
