@@ -93,6 +93,12 @@ Le testnet utilise désormais un bloc genesis figé et identique pour tous les n
 
 Le message du coinbase est stocké dans `extra_data` et fait partie du consensus (il influe sur le txid du coinbase, la racine de Merkle et le hash du bloc genesis).
 
+## Notes de consensus (coinbase, supply, version bits)
+
+- **Coinbase + hauteur** : chaque transaction coinbase doit inclure la hauteur du bloc dans `extra_data` (format déterministe `height=<N>`), y compris pour le genesis.
+- **Supply maximale** : la création monétaire est plafonnée à `MAX_SUPPLY` et la récompense coinbase est limitée par la quantité restante.
+- **Version bits** : le champ `version` des headers accepte des flags (compatibles soft-fork) et les bits inconnus restent valides.
+
 ### Vérifications manuelles (acceptation)
 
 1. **Supprimer deux répertoires de données**

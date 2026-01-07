@@ -7,6 +7,39 @@ from typing import Any
 from aureum_chain.crypto import hash_hex, merkle_root, json_dumps
 from aureum_chain.tx import Transaction
 
+VERSION_BITS_MASK = 0b11100000_00000000_00000000_00000000
+VERSION_SIGNALING_BITS = 0b00100000_00000000_00000000_00000000
+FEATURE_FLAGS = {
+    "future_softfork_1": 1 << 0,
+    "future_softfork_2": 1 << 1,
+}
+
+
+def encode_version(base_version: int, flags: list[str]) -> int:
+    flag_bits = 0
+    for flag in flags:
+        bit = FEATURE_FLAGS.get(flag)
+        if bit is not None:
+            flag_bits |= bit
+    base_clean = base_version & ~VERSION_BITS_MASK
+    return base_clean | VERSION_SIGNALING_BITS | flag_bits
+
+
+def decode_version(version: int) -> dict[str, Any]:
+    enabled_flags: list[str] = []
+    known_bits = 0
+    for name, bit in FEATURE_FLAGS.items():
+        if version & bit:
+            enabled_flags.append(name)
+            known_bits |= bit
+    base_version = version & ~VERSION_BITS_MASK & ~known_bits
+    return {
+        "signaling_bits": version & VERSION_BITS_MASK,
+        "base_version": base_version,
+        "flags": enabled_flags,
+        "unknown_bits": version & ~VERSION_BITS_MASK & ~known_bits,
+    }
+
 
 @dataclass
 class BlockHeader:

@@ -5,12 +5,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from aureum_chain.block import Block
+from aureum_chain.block import Block, encode_version
 from aureum_chain.config import ChainConfig
 from aureum_chain.crypto import merkle_root, pubkey_hash_from_address
 from aureum_chain.genesis import get_genesis_hash, get_testnet_genesis_block
 from aureum_chain.mempool import Mempool
-from aureum_chain.tx import Transaction, TxInput, TxOutput
+from aureum_chain.tx import Transaction, TxInput, TxOutput, coinbase_extra_data
 
 
 @dataclass
@@ -47,6 +47,17 @@ class Blockchain:
         reward = self.config.initial_reward >> halvings
         return max(reward, 1)
 
+    def current_supply(self) -> int:
+        total = 0
+        for block in self.state.blocks:
+            if not block.transactions:
+                continue
+            coinbase_tx = block.transactions[0]
+            if not coinbase_tx.is_coinbase():
+                continue
+            total += sum(output.amount for output in coinbase_tx.outputs)
+        return total
+
     def add_transaction(self, tx: Transaction) -> bool:
         if not tx.validate(self.state.utxos):
             return False
@@ -54,20 +65,24 @@ class Blockchain:
         return True
 
     def mine_block(self, miner_address: str) -> Block:
+        height = self.height() + 1
         txs = self.mempool.sorted_transactions()
         fee_total = self.mempool.fee_total()
-        reward = self.block_reward(self.height() + 1) + fee_total
+        remaining_supply = max(self.config.max_supply - self.current_supply(), 0)
+        reward = min(self.block_reward(height) + fee_total, remaining_supply)
         miner_pubkey_hash = pubkey_hash_from_address(miner_address).hex()
         coinbase = Transaction(
             inputs=[TxInput(txid="", vout=-1, signature="", pubkey="")],
             outputs=[TxOutput(amount=reward, pubkey_hash=miner_pubkey_hash)],
+            extra_data=coinbase_extra_data(height),
         )
         block_txs = [coinbase] + txs
         block = Block.create(
             prev_hash=self.last_hash(),
-            height=self.height() + 1,
+            height=height,
             transactions=block_txs,
             bits=self.difficulty_bits(),
+            version=encode_version(self.config.base_version, list(self.config.version_flags)),
         )
         block.mine(self.target_prefix())
         self.apply_block(block)
@@ -98,15 +113,35 @@ class Blockchain:
         merkle = merkle_root([tx.txid for tx in block.transactions])
         if merkle != block.header.merkle_root:
             return False
+        if not block.transactions:
+            return False
+        coinbase_tx = block.transactions[0]
+        if not coinbase_tx.is_coinbase():
+            return False
+        if any(tx.is_coinbase() for tx in block.transactions[1:]):
+            return False
+        if coinbase_tx.extra_data != coinbase_extra_data(block.height):
+            return False
         temp_utxos = dict(self.state.utxos)
+        total_fees = 0
         for tx in block.transactions:
             if not tx.validate(temp_utxos):
                 return False
             if not tx.is_coinbase():
+                total_in = sum(temp_utxos[f"{i.txid}:{i.vout}"].amount for i in tx.inputs)
+                total_out = sum(output.amount for output in tx.outputs)
+                total_fees += total_in - total_out
                 for tx_input in tx.inputs:
                     temp_utxos.pop(f"{tx_input.txid}:{tx_input.vout}", None)
             for index, output in enumerate(tx.outputs):
                 temp_utxos[f"{tx.txid}:{index}"] = output
+        current_supply = self.current_supply()
+        remaining_supply = max(self.config.max_supply - current_supply, 0)
+        expected_reward = min(self.block_reward(block.height), remaining_supply)
+        coinbase_total = sum(output.amount for output in coinbase_tx.outputs)
+        max_coinbase = min(expected_reward + total_fees, remaining_supply)
+        if coinbase_total > max_coinbase:
+            return False
         return True
 
     def to_dict(self) -> dict[str, Any]:

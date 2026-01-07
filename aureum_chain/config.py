@@ -16,6 +16,9 @@ class ChainConfig:
     coinbase_maturity: int = 100
     initial_reward: int = 50
     halving_interval: int = 210_000
+    max_supply: int = 21_000_000
+    base_version: int = 1
+    version_flags: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
