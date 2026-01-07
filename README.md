@@ -86,3 +86,33 @@ uvicorn aureum_chain.node:create_app --factory --host 0.0.0.0 --port 8332 --prox
 ```
 
 Vous pouvez configurer des volumes persistants pour `~/.aureum_chain` afin de conserver la chaîne et le mempool.
+
+## Test manuel (propagation automatique)
+
+1. **Démarrer deux nœuds avec des répertoires séparés**
+
+```bash
+aureum-chain node --data-dir ~/.aureum_chain_node1 --host 0.0.0.0 --port 8332
+aureum-chain node --data-dir ~/.aureum_chain_node2 --host 0.0.0.0 --port 8333
+```
+
+2. **Ajouter les pairs**
+
+```bash
+curl -X POST http://127.0.0.1:8332/peers/add -H "Content-Type: application/json" -d '{"peers": ["http://127.0.0.1:8333"]}'
+curl -X POST http://127.0.0.1:8333/peers/add -H "Content-Type: application/json" -d '{"peers": ["http://127.0.0.1:8332"]}'
+```
+
+3. **Soumettre une transaction et vérifier la propagation**
+
+```bash
+curl -X POST http://127.0.0.1:8332/transactions/new -H "Content-Type: application/json" -d '<TX_JSON>'
+curl http://127.0.0.1:8333/status
+```
+
+4. **Miner sur le nœud 1 et vérifier la propagation du bloc**
+
+```bash
+curl -X POST http://127.0.0.1:8332/mine -H "Content-Type: application/json" -d '{"address": "<ADRESSE_DU_MINEUR>"}'
+curl http://127.0.0.1:8333/status
+```
