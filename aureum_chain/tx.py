@@ -8,6 +8,12 @@ from cryptography.hazmat.primitives.asymmetric import ec
 
 from aureum_chain.crypto import json_dumps, hash_hex, pubkey_hash_from_address, verify
 
+COINBASE_HEIGHT_PREFIX = "height="
+
+
+def coinbase_extra_data(height: int) -> str:
+    return f"{COINBASE_HEIGHT_PREFIX}{height}"
+
 
 @dataclass
 class TxInput:
