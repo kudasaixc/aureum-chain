@@ -1,16 +1,16 @@
 # Aureum Chain
 
-Aureum Chain est une blockchain inspirée de Bitcoin (modèle UTXO, preuve de travail, transactions signées) livrée comme un nœud exécutable et un CLI.
+Aureum Chain is a Python blockchain project inspired by Bitcoin. It ships as a node and CLI, using a UTXO model, proof-of-work, and signed transactions.
 
-## Fonctionnalités principales
+## Key features
 
-- Modèle UTXO avec signatures ECDSA (SECP256K1).
-- Preuve de travail (PoW) avec difficulté configurable.
-- Mempool avec sélection des transactions par frais.
-- API HTTP pour diffuser les transactions, miner, synchroniser et ajouter des pairs.
-- Portefeuille local (clé privée + adresse) avec export JSON.
+- UTXO model with ECDSA (SECP256K1) signatures.
+- Proof-of-work with configurable difficulty.
+- Mempool with fee-based transaction selection.
+- HTTP API for transactions, mining, syncing, and peers.
+- Local wallet (private key + address) with JSON export.
 
-## Pré-requis
+## Requirements
 
 - Python 3.10+
 
@@ -22,142 +22,142 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Démarrage rapide
+## Quick start
 
-1. **Initialiser la chaîne**
+1. **Initialize the chain**
 
 ```bash
 aureum-chain init --data-dir ~/.aureum_chain
 ```
 
-2. **Créer un portefeuille**
+2. **Create a wallet**
 
 ```bash
 aureum-chain wallet create --path ~/.aureum_chain/wallet.json
 ```
 
-3. **Démarrer un nœud**
+3. **Start a node**
 
 ```bash
 aureum-chain node --data-dir ~/.aureum_chain --host 0.0.0.0 --port 8332
 ```
 
-4. **Miner un bloc**
+4. **Mine a block**
 
 ```bash
-aureum-chain mine <ADRESSE_DU_MINEUR>
+aureum-chain mine <MINER_ADDRESS>
 ```
 
-5. **Envoyer une transaction**
+5. **Send a transaction**
 
 ```bash
-aureum-chain tx <ADRESSE_DESTINATAIRE> <MONTANT>
+aureum-chain tx <RECIPIENT_ADDRESS> <AMOUNT>
 ```
 
-## Mise en réseau
+## Networking
 
-- **Ajouter des pairs**
+- **Add peers**
 
 ```bash
 aureum-chain peers http://127.0.0.1:8333 http://127.0.0.1:8334
 ```
 
-- **Synchroniser**
+- **Sync**
 
 ```bash
 aureum-chain sync
 ```
 
-## API HTTP (extraits)
+## HTTP API (excerpt)
 
-- `GET /status` → état du nœud (hauteur, hash, mempool)
-- `GET /chain` → chaîne complète
-- `POST /transactions/new` → nouvelle transaction
-- `POST /mine` → minage manuel
-- `POST /sync` → synchronisation avec les pairs
+- `GET /status` → node status (height, hash, mempool)
+- `GET /chain` → full chain
+- `POST /transactions/new` → submit a transaction
+- `POST /mine` → manual mining
+- `POST /sync` → sync with peers
 
-## Déploiement
+## Deployment
 
-Pour un déploiement immédiat, exécutez un service système ou un conteneur qui lance :
+For a simple deployment, run a service or container that launches:
 
 ```bash
 export AUREUM_DATA_DIR=~/.aureum_chain
 uvicorn aureum_chain.node:create_app --factory --host 0.0.0.0 --port 8332 --proxy-headers
 ```
 
-Vous pouvez configurer des volumes persistants pour `~/.aureum_chain` afin de conserver la chaîne et le mempool.
+Mount a persistent volume for `~/.aureum_chain` to keep the chain and mempool.
 
-## Genesis testnet déterministe
+## Deterministic testnet genesis
 
-Le testnet utilise désormais un bloc genesis figé et identique pour tous les nœuds. Si un répertoire de données contient un genesis différent, le nœud refusera de démarrer avec un message clair pour éviter les incompatibilités de réseau.
+Testnet uses a fixed genesis block. If the data directory contains a different genesis block, the node refuses to start to prevent network splits.
 
-Le message du coinbase est stocké dans `extra_data` et fait partie du consensus (il influe sur le txid du coinbase, la racine de Merkle et le hash du bloc genesis).
+The coinbase message is stored in `extra_data` and is part of consensus (it affects the coinbase txid, Merkle root, and genesis hash).
 
-## Notes de consensus (coinbase, supply, version bits)
+## Consensus notes (coinbase, supply, version bits)
 
-- **Coinbase + hauteur** : chaque transaction coinbase doit inclure la hauteur du bloc dans `extra_data` (format déterministe `height=<N>`), y compris pour le genesis.
-- **Supply maximale** : la création monétaire est plafonnée à `MAX_SUPPLY` et la récompense coinbase est limitée par la quantité restante.
-- **Version bits** : le champ `version` des headers accepte des flags (compatibles soft-fork) et les bits inconnus restent valides.
+- **Coinbase + height**: each coinbase transaction must include the block height in `extra_data` (deterministic format `height=<N>`), including genesis.
+- **Max supply**: total issuance is capped at `MAX_SUPPLY`; coinbase reward is limited by remaining supply.
+- **Version bits**: header `version` accepts soft-fork-style signaling flags; unknown bits remain valid.
 
-### Vérifications manuelles (acceptation)
+### Manual checks (acceptance)
 
-1. **Supprimer deux répertoires de données**
+1. **Remove two data directories**
 
 ```bash
 rm -rf ~/.aureum_chain_node1 ~/.aureum_chain_node2
 ```
 
-2. **Démarrer deux nœuds avec des répertoires vides**
+2. **Start two nodes with empty data dirs**
 
 ```bash
 aureum-chain node --data-dir ~/.aureum_chain_node1 --host 0.0.0.0 --port 8332
 aureum-chain node --data-dir ~/.aureum_chain_node2 --host 0.0.0.0 --port 8333
 ```
 
-3. **Comparer le hash du bloc 0**
+3. **Compare the genesis hash**
 
 ```bash
 curl http://127.0.0.1:8332/status
 curl http://127.0.0.1:8333/status
 ```
 
-4. **Miner sur le nœud 1 et vérifier l'acceptation par le nœud 2**
+4. **Mine on node 1 and confirm node 2 accepts it**
 
 ```bash
-curl -X POST http://127.0.0.1:8332/mine -H "Content-Type: application/json" -d '{"address": "<ADRESSE_DU_MINEUR>"}'
+curl -X POST http://127.0.0.1:8332/mine -H "Content-Type: application/json" -d '{"address": "<MINER_ADDRESS>"}'
 curl http://127.0.0.1:8333/status
 ```
 
-5. **Démarrer un nœud avec un ancien répertoire de données**
+5. **Start a node with an old data directory**
 
-Si le genesis ne correspond pas au testnet, le démarrage doit échouer avec un message expliquant la mismatch réseau.
+If the genesis does not match testnet, startup must fail with a clear network mismatch message.
 
-## Test manuel (propagation automatique)
+## Manual test (automatic propagation)
 
-1. **Démarrer deux nœuds avec des répertoires séparés**
+1. **Start two nodes with separate data dirs**
 
 ```bash
 aureum-chain node --data-dir ~/.aureum_chain_node1 --host 0.0.0.0 --port 8332
 aureum-chain node --data-dir ~/.aureum_chain_node2 --host 0.0.0.0 --port 8333
 ```
 
-2. **Ajouter les pairs**
+2. **Add peers**
 
 ```bash
 curl -X POST http://127.0.0.1:8332/peers/add -H "Content-Type: application/json" -d '{"peers": ["http://127.0.0.1:8333"]}'
 curl -X POST http://127.0.0.1:8333/peers/add -H "Content-Type: application/json" -d '{"peers": ["http://127.0.0.1:8332"]}'
 ```
 
-3. **Soumettre une transaction et vérifier la propagation**
+3. **Submit a transaction and verify propagation**
 
 ```bash
 curl -X POST http://127.0.0.1:8332/transactions/new -H "Content-Type: application/json" -d '<TX_JSON>'
 curl http://127.0.0.1:8333/status
 ```
 
-4. **Miner sur le nœud 1 et vérifier la propagation du bloc**
+4. **Mine on node 1 and verify block propagation**
 
 ```bash
-curl -X POST http://127.0.0.1:8332/mine -H "Content-Type: application/json" -d '{"address": "<ADRESSE_DU_MINEUR>"}'
+curl -X POST http://127.0.0.1:8332/mine -H "Content-Type: application/json" -d '{"address": "<MINER_ADDRESS>"}'
 curl http://127.0.0.1:8333/status
 ```

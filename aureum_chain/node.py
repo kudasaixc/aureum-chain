@@ -186,6 +186,7 @@ def block_from_dict(data: dict[str, Any]) -> Block:
         height=data.get("height", 0),
         transactions=transactions,
         bits=header_data.get("bits", 0),
+        timestamp=header_data.get("timestamp", 0),
         version=header_data.get("version", 1),
     ).header.merkle_root
     provided_merkle = header_data.get("merkle_root")
@@ -195,7 +196,7 @@ def block_from_dict(data: dict[str, Any]) -> Block:
         version=header_data.get("version", 1),
         prev_hash=header_data.get("prev_hash", ""),
         merkle_root=computed_merkle,
-        timestamp=header_data.get("timestamp", int(time.time())),
+        timestamp=header_data.get("timestamp", 0),
         bits=header_data.get("bits", 0),
         nonce=header_data.get("nonce", 0),
     )
