@@ -8,6 +8,7 @@ from typing import Any
 from aureum_chain.block import Block
 from aureum_chain.config import ChainConfig
 from aureum_chain.crypto import merkle_root, pubkey_hash_from_address
+from aureum_chain.genesis import get_genesis_hash, get_testnet_genesis_block
 from aureum_chain.mempool import Mempool
 from aureum_chain.tx import Transaction, TxInput, TxOutput
 
@@ -25,13 +26,8 @@ class Blockchain:
         self.state = self._create_genesis()
 
     def _create_genesis(self) -> ChainState:
-        coinbase = Transaction(
-            inputs=[TxInput(txid="", vout=-1, signature="", pubkey="")],
-            outputs=[TxOutput(amount=self.config.initial_reward, pubkey_hash="genesis")],
-        )
-        genesis = Block.create(prev_hash="0" * 64, height=0, transactions=[coinbase], bits=0)
-        genesis.hash = genesis.header.hash()
-        utxos = {f"{coinbase.txid}:0": coinbase.outputs[0]}
+        genesis = get_testnet_genesis_block(self.config)
+        utxos = {f"{genesis.transactions[0].txid}:0": genesis.transactions[0].outputs[0]}
         return ChainState(blocks=[genesis], utxos=utxos)
 
     def height(self) -> int:
@@ -127,8 +123,37 @@ class Blockchain:
         if not path.exists():
             return Blockchain(config)
         data = json.loads(path.read_text())
+        blocks_data = data.get("blocks", [])
+        if not blocks_data:
+            return Blockchain(config)
+        first_block_data = blocks_data[0]
+        transactions = []
+        for tx_data in first_block_data["transactions"]:
+            inputs = [TxInput(**inp) for inp in tx_data["inputs"]]
+            outputs = [TxOutput(**out) for out in tx_data["outputs"]]
+            tx = Transaction(inputs=inputs, outputs=outputs, locktime=tx_data.get("locktime", 0))
+            transactions.append(tx)
+        genesis_block = Block.create(
+            prev_hash=first_block_data["header"]["prev_hash"],
+            height=first_block_data["height"],
+            transactions=transactions,
+            bits=first_block_data["header"]["bits"],
+            version=first_block_data["header"]["version"],
+        )
+        genesis_block.header.nonce = first_block_data["header"]["nonce"]
+        genesis_block.header.timestamp = first_block_data["header"]["timestamp"]
+        computed_genesis_hash = genesis_block.header.hash()
+        stored_genesis_hash = first_block_data.get("hash")
+        if stored_genesis_hash and stored_genesis_hash != computed_genesis_hash:
+            raise ValueError("Genesis block hash mismatch in chain data.")
+        expected_genesis_hash = get_genesis_hash(config)
+        if computed_genesis_hash != expected_genesis_hash:
+            raise ValueError(
+                "Genesis mismatch: this data dir belongs to a different network. "
+                "Delete data dir or use the correct network config."
+            )
         chain = Blockchain(config)
-        for block_data in data.get("blocks", []):
+        for block_data in blocks_data:
             transactions = []
             for tx_data in block_data["transactions"]:
                 inputs = [TxInput(**inp) for inp in tx_data["inputs"]]
@@ -144,7 +169,10 @@ class Blockchain:
             )
             block.header.nonce = block_data["header"]["nonce"]
             block.header.timestamp = block_data["header"]["timestamp"]
-            block.hash = block_data["hash"]
+            if block.height == 0:
+                block.hash = block.header.hash()
+            else:
+                block.hash = block_data["hash"]
             if block.height == 0:
                 chain.state.blocks = [block]
                 chain.state.utxos = {f"{transactions[0].txid}:0": transactions[0].outputs[0]}

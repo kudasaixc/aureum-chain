@@ -8,6 +8,7 @@ from pathlib import Path
 class ChainConfig:
     name: str = "Aureum Chain"
     symbol: str = "AUR"
+    network: str = "testnet"
     genesis_message: str = "Aureum Chain Genesis Block"
     block_time_seconds: int = 600
     target_leading_zeros: int = 4
