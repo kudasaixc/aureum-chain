@@ -91,6 +91,8 @@ Vous pouvez configurer des volumes persistants pour `~/.aureum_chain` afin de co
 
 Le testnet utilise désormais un bloc genesis figé et identique pour tous les nœuds. Si un répertoire de données contient un genesis différent, le nœud refusera de démarrer avec un message clair pour éviter les incompatibilités de réseau.
 
+Le message du coinbase est stocké dans `extra_data` et fait partie du consensus (il influe sur le txid du coinbase, la racine de Merkle et le hash du bloc genesis).
+
 ### Vérifications manuelles (acceptation)
 
 1. **Supprimer deux répertoires de données**

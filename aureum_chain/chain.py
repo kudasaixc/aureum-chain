@@ -131,7 +131,12 @@ class Blockchain:
         for tx_data in first_block_data["transactions"]:
             inputs = [TxInput(**inp) for inp in tx_data["inputs"]]
             outputs = [TxOutput(**out) for out in tx_data["outputs"]]
-            tx = Transaction(inputs=inputs, outputs=outputs, locktime=tx_data.get("locktime", 0))
+            tx = Transaction(
+                inputs=inputs,
+                outputs=outputs,
+                locktime=tx_data.get("locktime", 0),
+                extra_data=tx_data.get("extra_data"),
+            )
             transactions.append(tx)
         genesis_block = Block.create(
             prev_hash=first_block_data["header"]["prev_hash"],
@@ -158,7 +163,12 @@ class Blockchain:
             for tx_data in block_data["transactions"]:
                 inputs = [TxInput(**inp) for inp in tx_data["inputs"]]
                 outputs = [TxOutput(**out) for out in tx_data["outputs"]]
-                tx = Transaction(inputs=inputs, outputs=outputs, locktime=tx_data.get("locktime", 0))
+                tx = Transaction(
+                    inputs=inputs,
+                    outputs=outputs,
+                    locktime=tx_data.get("locktime", 0),
+                    extra_data=tx_data.get("extra_data"),
+                )
                 transactions.append(tx)
             block = Block.create(
                 prev_hash=block_data["header"]["prev_hash"],

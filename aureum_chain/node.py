@@ -167,7 +167,12 @@ def normalize_peer(peer: str | None) -> str | None:
 def transaction_from_dict(data: dict[str, Any]) -> Transaction:
     inputs = [TxInput(**inp) for inp in data.get("inputs", [])]
     outputs = [TxOutput(**out) for out in data.get("outputs", [])]
-    tx = Transaction(inputs=inputs, outputs=outputs, locktime=data.get("locktime", 0))
+    tx = Transaction(
+        inputs=inputs,
+        outputs=outputs,
+        locktime=data.get("locktime", 0),
+        extra_data=data.get("extra_data"),
+    )
     if "txid" in data and data["txid"] != tx.txid:
         raise ValueError("Transaction txid mismatch")
     return tx

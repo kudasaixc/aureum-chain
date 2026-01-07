@@ -35,7 +35,12 @@ class Storage:
             tx_data = entry["tx"]
             inputs = [TxInput(**inp) for inp in tx_data["inputs"]]
             outputs = [TxOutput(**out) for out in tx_data["outputs"]]
-            tx = Transaction(inputs=inputs, outputs=outputs, locktime=tx_data.get("locktime", 0))
+            tx = Transaction(
+                inputs=inputs,
+                outputs=outputs,
+                locktime=tx_data.get("locktime", 0),
+                extra_data=tx_data.get("extra_data"),
+            )
             mempool.transactions[tx.txid] = tx
             mempool.fees[tx.txid] = entry.get("fee", 0)
         return mempool
