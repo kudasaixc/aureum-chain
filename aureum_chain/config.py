@@ -27,6 +27,7 @@ class NodeConfig:
     data_dir: Path
     host: str = "0.0.0.0"
     port: int = 8332
+    public_url: str | None = None
     peers_file: str = "peers.json"
     chain_file: str = "chain.json"
     mempool_file: str = "mempool.json"
