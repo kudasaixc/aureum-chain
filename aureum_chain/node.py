@@ -9,6 +9,7 @@ from typing import Any
 
 import requests
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse
 
 from aureum_chain.block import Block, BlockHeader
 from aureum_chain.chain import Blockchain
@@ -16,6 +17,7 @@ from aureum_chain.config import ChainConfig, NodeConfig
 from aureum_chain.storage import Storage
 from aureum_chain.tx import Transaction, TxInput, TxOutput
 from aureum_chain.crypto import pubkey_hash_from_address
+from aureum_chain.ui import render_ui
 
 
 @dataclass
@@ -236,6 +238,10 @@ def create_app(data_dir: Path | None = None, host: str = "0.0.0.0", port: int = 
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/", response_class=HTMLResponse)
+    def ui_home() -> str:
+        return render_ui()
 
     @app.get("/status")
     def status() -> dict[str, Any]:
