@@ -46,6 +46,16 @@ class Node:
             }
         return {f"http://{host}:{port}"}
 
+    def public_url(self) -> str | None:
+        configured = self.storage.config.public_url
+        if configured:
+            return normalize_peer(configured)
+        host = self.storage.config.host
+        port = self.storage.config.port
+        if host in {"0.0.0.0", "127.0.0.1", "localhost"}:
+            return None
+        return normalize_peer(f"http://{host}:{port}")
+
     def save_state(self) -> None:
         self.chain.save(self.storage.config.chain_path)
         self.storage.save_mempool(self.chain.mempool)
@@ -200,17 +210,26 @@ def normalize_peer(peer: str | None) -> str | None:
     return f"{parsed.scheme}://{netloc}"
 
 
-def fetch_seed_peers(seed: str) -> list[str]:
+def fetch_seed_peers(seed: str) -> tuple[list[str], bool]:
     try:
         response = requests.get(f"{seed}/peers", timeout=5)
         response.raise_for_status()
     except Exception:
-        return []
+        return ([], False)
     data = response.json()
     peers = data.get("peers", [])
     if not isinstance(peers, list):
-        return []
-    return peers
+        return ([], True)
+    return (peers, True)
+
+
+def announce_to_seed(seed: str, peer: str) -> bool:
+    try:
+        response = requests.post(f"{seed}/peers/add", json={"peers": [peer]}, timeout=5)
+        response.raise_for_status()
+    except Exception:
+        return False
+    return True
 
 
 def bootstrap_from_seeds(node: Node) -> int:
@@ -221,7 +240,12 @@ def bootstrap_from_seeds(node: Node) -> int:
         seed_url = normalize_peer(seed)
         if not seed_url:
             continue
-        for peer in fetch_seed_peers(seed_url):
+        peers, contacted = fetch_seed_peers(seed_url)
+        if contacted:
+            public_url = node.public_url()
+            if public_url:
+                announce_to_seed(seed_url, public_url)
+        for peer in peers:
             if imported >= MAX_IMPORTED_PEERS:
                 break
             if node.add_peer(peer):
@@ -276,11 +300,18 @@ def block_from_dict(data: dict[str, Any]) -> Block:
     return block
 
 
-def create_app(data_dir: Path | None = None, host: str = "0.0.0.0", port: int = 8332) -> FastAPI:
+def create_app(
+    data_dir: Path | None = None,
+    host: str = "0.0.0.0",
+    port: int = 8332,
+    public_url: str | None = None,
+) -> FastAPI:
     if data_dir is None:
         data_dir = Path(os.environ.get("AUREUM_DATA_DIR", str(Path.home() / ".aureum_chain")))
+    if public_url is None:
+        public_url = os.environ.get("AUREUM_PUBLIC_URL")
     chain_config = ChainConfig()
-    node_config = NodeConfig(data_dir=data_dir, host=host, port=port)
+    node_config = NodeConfig(data_dir=data_dir, host=host, port=port, public_url=public_url)
     storage = Storage(node_config)
     try:
         chain = Blockchain.load(node_config.chain_path, chain_config)

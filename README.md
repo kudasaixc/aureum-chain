@@ -62,6 +62,17 @@ aureum-chain tx <RECIPIENT_ADDRESS> <AMOUNT>
 aureum-chain peers http://127.0.0.1:8333 http://127.0.0.1:8334
 ```
 
+- **Seed discovery (announce yourself)**
+
+If you want automatic seed-based peer discovery, provide a public URL so the node can
+announce itself to the seed:
+
+```bash
+aureum-chain node --data-dir ~/.aureum_chain --host 0.0.0.0 --port 8332 --public-url http://<PUBLIC_IP>:8332
+```
+
+Or set `AUREUM_PUBLIC_URL` before starting the node.
+
 - **Sync**
 
 ```bash

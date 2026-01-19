@@ -39,10 +39,10 @@ def wallet_show(path: Path) -> None:
     print(json.dumps(wallet.to_dict(), indent=2))
 
 
-def start_node(data_dir: Path, host: str, port: int) -> None:
+def start_node(data_dir: Path, host: str, port: int, public_url: str | None) -> None:
     import uvicorn
 
-    app = create_app(data_dir, host, port)
+    app = create_app(data_dir, host, port, public_url)
     uvicorn.run(app, host=host, port=port)
 
 
@@ -114,6 +114,7 @@ def main() -> None:
     node_parser = subparsers.add_parser("node")
     node_parser.add_argument("--host", default="0.0.0.0")
     node_parser.add_argument("--port", type=int, default=8332)
+    node_parser.add_argument("--public-url")
 
     tx_parser = subparsers.add_parser("tx")
     tx_parser.add_argument("to")
@@ -140,7 +141,7 @@ def main() -> None:
         else:
             parser.error("wallet command required")
     elif args.command == "node":
-        start_node(args.data_dir, args.host, args.port)
+        start_node(args.data_dir, args.host, args.port, args.public_url)
     elif args.command == "tx":
         send_transaction(args.wallet, args.to, args.amount, args.node_url)
     elif args.command == "mine":
