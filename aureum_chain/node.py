@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import time
+from urllib.parse import urlparse
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,11 @@ from aureum_chain.storage import Storage
 from aureum_chain.tx import Transaction, TxInput, TxOutput
 from aureum_chain.crypto import pubkey_hash_from_address
 from aureum_chain.ui import render_ui
+
+SEED_NODES = [
+    "http://95.217.217.154:8333",
+]
+MAX_IMPORTED_PEERS = 50
 
 
 @dataclass
@@ -45,14 +51,16 @@ class Node:
         self.storage.save_mempool(self.chain.mempool)
         self.storage.save_peers(self.peers)
 
-    def add_peer(self, peer: str) -> None:
+    def add_peer(self, peer: str) -> bool:
         normalized = normalize_peer(peer)
         if not normalized:
-            return
+            return False
         if normalized in self.self_urls():
-            return
+            return False
         if normalized not in self.peers:
             self.peers.append(normalized)
+            return True
+        return False
 
     def sync(self) -> bool:
         best_chain = None
@@ -163,7 +171,67 @@ class Node:
 def normalize_peer(peer: str | None) -> str | None:
     if not peer:
         return None
-    return peer.rstrip("/")
+    candidate = peer.strip()
+    parsed = urlparse(candidate)
+    if parsed.scheme not in {"http", "https"}:
+        return None
+    if not parsed.netloc:
+        return None
+    if parsed.username or parsed.password:
+        return None
+    if parsed.params or parsed.query or parsed.fragment:
+        return None
+    if parsed.path not in {"", "/"}:
+        return None
+    try:
+        port = parsed.port
+    except ValueError:
+        return None
+    host = parsed.hostname
+    if not host:
+        return None
+    if ":" in host and not host.startswith("["):
+        host = f"[{host}]"
+    netloc = host
+    if port is not None:
+        if not 0 < port < 65536:
+            return None
+        netloc = f"{host}:{port}"
+    return f"{parsed.scheme}://{netloc}"
+
+
+def fetch_seed_peers(seed: str) -> list[str]:
+    try:
+        response = requests.get(f"{seed}/peers", timeout=5)
+        response.raise_for_status()
+    except Exception:
+        return []
+    data = response.json()
+    peers = data.get("peers", [])
+    if not isinstance(peers, list):
+        return []
+    return peers
+
+
+def bootstrap_from_seeds(node: Node) -> int:
+    if node.peers:
+        return 0
+    imported = 0
+    for seed in SEED_NODES:
+        seed_url = normalize_peer(seed)
+        if not seed_url:
+            continue
+        for peer in fetch_seed_peers(seed_url):
+            if imported >= MAX_IMPORTED_PEERS:
+                break
+            if node.add_peer(peer):
+                imported += 1
+        if imported >= MAX_IMPORTED_PEERS:
+            break
+    if imported:
+        node.storage.save_peers(node.peers)
+        node.sync()
+    return imported
 
 
 def transaction_from_dict(data: dict[str, Any]) -> Transaction:
@@ -230,6 +298,10 @@ def create_app(data_dir: Path | None = None, host: str = "0.0.0.0", port: int = 
     )
 
     app = FastAPI(title=chain_config.name)
+
+    @app.on_event("startup")
+    def _startup() -> None:
+        bootstrap_from_seeds(node)
 
     @app.on_event("shutdown")
     def _shutdown() -> None:
