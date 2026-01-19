@@ -223,9 +223,14 @@ def fetch_seed_peers(seed: str) -> tuple[list[str], bool]:
     return (peers, True)
 
 
-def announce_to_seed(seed: str, peer: str) -> bool:
+def announce_to_seed(seed: str, public_url: str | None) -> bool:
+    payload: dict[str, Any]
+    if public_url:
+        payload = {"peers": [public_url], "public_url": public_url}
+    else:
+        payload = {"public_url": None}
     try:
-        response = requests.post(f"{seed}/peers/add", json={"peers": [peer]}, timeout=5)
+        response = requests.post(f"{seed}/peers/add", json=payload, timeout=5)
         response.raise_for_status()
     except Exception:
         return False
@@ -242,9 +247,7 @@ def bootstrap_from_seeds(node: Node) -> int:
             continue
         peers, contacted = fetch_seed_peers(seed_url)
         if contacted:
-            public_url = node.public_url()
-            if public_url:
-                announce_to_seed(seed_url, public_url)
+            announce_to_seed(seed_url, node.public_url())
         for peer in peers:
             if imported >= MAX_IMPORTED_PEERS:
                 break
@@ -461,8 +464,12 @@ def create_app(
     @app.post("/peers/add")
     def add_peers(payload: dict[str, Any]) -> dict[str, Any]:
         peers = payload.get("peers", [])
-        for peer in peers:
-            node.add_peer(peer)
+        if isinstance(peers, list):
+            for peer in peers:
+                node.add_peer(peer)
+        public_url = payload.get("public_url") or payload.get("peer")
+        if isinstance(public_url, str):
+            node.add_peer(public_url)
         node.storage.save_peers(node.peers)
         return {"status": "ok", "peers": node.peers}
 
