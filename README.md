@@ -20,6 +20,7 @@ Aureum Chain is a Python blockchain project inspired by Bitcoin. It ships as a n
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+pip install -e .
 ```
 
 ## Quick start
@@ -27,19 +28,19 @@ pip install -r requirements.txt
 1. **Initialize the chain**
 
 ```bash
-aureum-chain init --data-dir ~/.aureum_chain
+aureum-chain --data-dir ~/.aureum_chain init
 ```
 
 2. **Create a wallet**
 
 ```bash
-aureum-chain wallet create --path ~/.aureum_chain/wallet.json
+aureum-chain wallet --path ~/.aureum_chain/wallet.json create
 ```
 
 3. **Start a node**
 
 ```bash
-aureum-chain node --data-dir ~/.aureum_chain --host 0.0.0.0 --port 8332
+aureum-chain --data-dir ~/.aureum_chain node --host 0.0.0.0 --port 8332
 ```
 
 4. **Mine a block**
@@ -121,8 +122,8 @@ rm -rf ~/.aureum_chain_node1 ~/.aureum_chain_node2
 2. **Start two nodes with empty data dirs**
 
 ```bash
-aureum-chain node --data-dir ~/.aureum_chain_node1 --host 0.0.0.0 --port 8332
-aureum-chain node --data-dir ~/.aureum_chain_node2 --host 0.0.0.0 --port 8333
+aureum-chain --data-dir ~/.aureum_chain_node1 node --host 0.0.0.0 --port 8332
+aureum-chain --data-dir ~/.aureum_chain_node2 node --host 0.0.0.0 --port 8333
 ```
 
 3. **Compare the genesis hash**
@@ -148,8 +149,8 @@ If the genesis does not match testnet, startup must fail with a clear network mi
 1. **Start two nodes with separate data dirs**
 
 ```bash
-aureum-chain node --data-dir ~/.aureum_chain_node1 --host 0.0.0.0 --port 8332
-aureum-chain node --data-dir ~/.aureum_chain_node2 --host 0.0.0.0 --port 8333
+aureum-chain --data-dir ~/.aureum_chain_node1 node --host 0.0.0.0 --port 8332
+aureum-chain --data-dir ~/.aureum_chain_node2 node --host 0.0.0.0 --port 8333
 ```
 
 2. **Add peers**
